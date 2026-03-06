@@ -1,0 +1,68 @@
+# Flutter
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Flutter.podspec
+mobile/android/.gradle/
+mobile/android/app/debug
+mobile/android/app/profile
+mobile/android/app/release
+mobile/android/captures/
+mobile/android/local.properties
+mobile/android/.idea/
+
+# Go
+backend/bin/
+backend/vendor/
+backend/*.exe
+backend/*.dll
+backend/*.so
+backend/*.dylib
+backend/*.test
+backend/*.out
+backend/tmp/
+
+# Environment
+.env
+.env.local
+.env.production
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Database
+postgres_data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+*.pem
+*.key
+*.cert
+
+# Temporary files
+tmp/
+temp/

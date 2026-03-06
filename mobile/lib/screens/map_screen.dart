@@ -4,7 +4,9 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/gps_service.dart';
+import '../services/ride_recording_service.dart';
 import '../widgets/gps_data_panel.dart';
+import '../widgets/ride_stats_panel.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -16,6 +18,7 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
   final GpsService _gpsService = GpsService.instance;
+  final RideRecordingService _rideService = RideRecordingService.instance;
 
   Position? _currentPosition;
   bool _isLoadingLocation = true;
@@ -23,6 +26,7 @@ class _MapScreenState extends State<MapScreen> {
   String? _locationError;
 
   StreamSubscription<Position>? _locationSubscription;
+  Timer? _routeUpdateTimer;
 
   @override
   void initState() {
@@ -33,6 +37,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _routeUpdateTimer?.cancel();
     // Don't dispose the GPS service singleton here
     super.dispose();
   }
@@ -159,6 +164,177 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  /// Start recording a ride
+  Future<void> _startRide() async {
+    final started = await _rideService.startRide();
+
+    if (!started) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to start ride recording. Check GPS.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Start timer to update route polyline periodically
+    _routeUpdateTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _rideService.isRecording) {
+        setState(() {
+          // Trigger rebuild to update polyline
+        });
+      }
+    });
+
+    setState(() {
+      // Update UI to show recording state
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ride recording started!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Stop recording the current ride
+  Future<void> _stopRide() async {
+    try {
+      final summary = await _rideService.stopRide();
+
+      // Cancel update timer
+      _routeUpdateTimer?.cancel();
+      _routeUpdateTimer = null;
+
+      setState(() {
+        // Update UI
+      });
+
+      if (mounted) {
+        // Show ride summary dialog
+        _showRideSummary(summary);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error stopping ride: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show ride summary dialog
+  void _showRideSummary(RideSummary summary) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 12),
+            Text('Ride Complete!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSummaryRow(
+              icon: Icons.route,
+              label: 'Distance',
+              value: '${summary.distanceKm.toStringAsFixed(2)} km',
+            ),
+            const SizedBox(height: 12),
+            _buildSummaryRow(
+              icon: Icons.timer,
+              label: 'Duration',
+              value: summary.durationFormatted,
+            ),
+            const SizedBox(height: 12),
+            _buildSummaryRow(
+              icon: Icons.speed,
+              label: 'Average Speed',
+              value: '${summary.averageSpeedKmh.toStringAsFixed(1)} km/h',
+            ),
+            const SizedBox(height: 12),
+            _buildSummaryRow(
+              icon: Icons.trending_up,
+              label: 'Max Speed',
+              value: '${summary.maxSpeedKmh.toStringAsFixed(1)} km/h',
+            ),
+            const SizedBox(height: 12),
+            _buildSummaryRow(
+              icon: Icons.location_on,
+              label: 'GPS Points',
+              value: '${summary.routePoints.length}',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // TODO: In Phase 5, we'll save to local storage
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Ride saved locally (coming in Phase 5)'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Save Ride'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Colors.grey.shade600),
+        const SizedBox(width: 8),
+        Text(
+          '$label:',
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            color: Colors.grey,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -204,6 +380,19 @@ class _MapScreenState extends State<MapScreen> {
                 userAgentPackageName: 'com.ridelog.app',
                 maxZoom: 19,
               ),
+              // Route polyline (if recording)
+              if (_rideService.isRecording && _rideService.routeLatLngs.isNotEmpty)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: _rideService.routeLatLngs,
+                      strokeWidth: 4.0,
+                      color: Colors.blue,
+                      borderStrokeWidth: 2.0,
+                      borderColor: Colors.white,
+                    ),
+                  ],
+                ),
               // Current location marker
               if (_currentPosition != null)
                 MarkerLayer(
@@ -306,31 +495,25 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // GPS Data Panel
+          // Data Panels
           Positioned(
             bottom: 100, // Leave space for FAB
             left: 0,
             right: 0,
-            child: GpsDataPanel(
-              position: _currentPosition,
-              isTracking: _isTracking,
-            ),
+            child: _rideService.isRecording
+                ? RideStatsPanel(rideService: _rideService)
+                : GpsDataPanel(
+                    position: _currentPosition,
+                    isTracking: _isTracking,
+                  ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Start ride recording (Phase 4)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Ride recording coming in Phase 4!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        icon: const Icon(Icons.play_arrow),
-        label: const Text('Start Ride'),
-        backgroundColor: Colors.green,
+        onPressed: _rideService.isRecording ? _stopRide : _startRide,
+        icon: Icon(_rideService.isRecording ? Icons.stop : Icons.play_arrow),
+        label: Text(_rideService.isRecording ? 'Stop Ride' : 'Start Ride'),
+        backgroundColor: _rideService.isRecording ? Colors.red : Colors.green,
       ),
     );
   }

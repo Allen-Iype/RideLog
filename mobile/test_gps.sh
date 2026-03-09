@@ -2,6 +2,9 @@
 # GPS Location Simulator for RideLog Testing
 # Simulates a route through San Francisco
 
+# Path to adb
+ADB="/Users/allen/Library/Android/sdk/platform-tools/adb"
+
 echo "Starting GPS simulation for RideLog testing..."
 echo "This will simulate movement along a route."
 echo ""
@@ -28,7 +31,7 @@ for i in "${!coordinates[@]}"; do
     lon=${coord[1]}
 
     echo "[$((i+1))/${#coordinates[@]}] Setting location to: $lat, $lon"
-    adb emu geo fix $lon $lat
+    $ADB emu geo fix $lon $lat
 
     # Wait 5 seconds between updates (simulates riding speed)
     if [ $i -lt $((${#coordinates[@]}-1)) ]; then

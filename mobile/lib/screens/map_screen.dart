@@ -5,6 +5,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/gps_service.dart';
 import '../services/ride_recording_service.dart';
+import '../services/ride_storage_service.dart';
+import '../models/ride.dart';
 import '../widgets/gps_data_panel.dart';
 import '../widgets/ride_stats_panel.dart';
 
@@ -283,15 +285,46 @@ class _MapScreenState extends State<MapScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              // TODO: In Phase 5, we'll save to local storage
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Ride saved locally (coming in Phase 5)'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+
+              try {
+                // Convert RideSummary to Ride model
+                final ride = Ride.fromRideSummary(summary);
+
+                // Save to local database
+                final rideId = await RideStorageService.instance.saveRide(ride);
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Ride saved successfully!'),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 3),
+                      action: SnackBarAction(
+                        label: 'View',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          // TODO: Navigate to ride detail screen
+                        },
+                      ),
+                    ),
+                  );
+                }
+
+                print('Ride saved with ID: $rideId');
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error saving ride: $e'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+                print('Error saving ride: $e');
+              }
             },
             child: const Text('Save Ride'),
           ),

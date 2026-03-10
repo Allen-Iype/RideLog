@@ -156,6 +156,29 @@ class Ride {
     return '${months[startTime.month - 1]} ${startTime.day}, ${startTime.year}';
   }
 
+  /// Format distance for display
+  String formattedDistance() {
+    if (distanceKm >= 1.0) {
+      return '${distanceKm.toStringAsFixed(2)} km';
+    } else {
+      return '${distanceMeters.toStringAsFixed(0)} m';
+    }
+  }
+
+  /// Format duration for display
+  String formattedDuration() {
+    final hours = durationSeconds ~/ 3600;
+    final minutes = (durationSeconds % 3600) ~/ 60;
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    } else if (minutes > 0) {
+      return '${minutes}m';
+    } else {
+      return '${durationSeconds}s';
+    }
+  }
+
   @override
   String toString() {
     return 'Ride(id: $id, '

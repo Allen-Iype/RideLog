@@ -13,6 +13,7 @@ import '../models/ride.dart';
 import '../widgets/gps_data_panel.dart';
 import '../widgets/ride_stats_panel.dart';
 import 'login_screen.dart';
+import 'ride_history_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -573,6 +574,18 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
             ],
+          ),
+          // Ride history button
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const RideHistoryScreen(),
+                ),
+              );
+            },
+            tooltip: 'Ride History',
           ),
           // Menu button with logout option
           PopupMenuButton<String>(

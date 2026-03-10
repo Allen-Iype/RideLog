@@ -1,62 +1,47 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
-	"net/http"
-	"time"
+
+	"github.com/allen/ridelog-backend/internal/api/routes"
+	"github.com/allen/ridelog-backend/internal/config"
+	"github.com/allen/ridelog-backend/internal/database"
+	"github.com/gin-gonic/gin"
 )
 
-// HealthResponse represents the health check response
-type HealthResponse struct {
-	Status    string `json:"status"`
-	Timestamp string `json:"timestamp"`
-	Version   string `json:"version"`
-}
-
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now().Format(time.RFC3339),
-		Version:   "1.0.0",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-}
-
-func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		log.Printf("[%s] %s %s", r.Method, r.URL.Path, r.RemoteAddr)
-		next(w, r)
-		log.Printf("Request completed in %v", time.Since(start))
-	}
-}
-
 func main() {
-	// Register routes
-	http.HandleFunc("/health", loggingMiddleware(healthCheckHandler))
+	// Load configuration
+	cfg := config.Load()
 
-	// Server configuration
-	port := "8080"
-	server := &http.Server{
-		Addr:         ":" + port,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Initialize database
+	log.Println("Initializing database connection...")
+	if err := database.Initialize(&cfg.Database); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
+	defer database.Close()
+
+	// Run migrations
+	log.Println("Running database migrations...")
+	if err := database.RunMigrations(&cfg.Database); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Initialize Gin router
+	router := gin.Default()
+
+	// Setup all routes
+	routes.SetupRoutes(router)
 
 	// Start server
 	log.Println("╔════════════════════════════════════════╗")
 	log.Println("║         RideLog Backend API            ║")
 	log.Println("╚════════════════════════════════════════╝")
-	log.Printf("Server starting on port %s", port)
-	log.Printf("Health check: http://localhost:%s/health", port)
+	log.Printf("Server starting on %s:%s", cfg.Server.Host, cfg.Server.Port)
+	log.Printf("Health check: http://%s:%s/health", cfg.Server.Host, cfg.Server.Port)
+	log.Printf("API v1: http://%s:%s/api/v1", cfg.Server.Host, cfg.Server.Port)
 	log.Println("Press Ctrl+C to stop")
 
-	if err := server.ListenAndServe(); err != nil {
+	if err := router.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

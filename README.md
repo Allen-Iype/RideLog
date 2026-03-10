@@ -229,6 +229,29 @@ flutter build ios --release
 flutter build apk --release --dart-define=API_BASE_URL=https://api.yourdomain.com/api/v1
 ```
 
+### Custom App Icons
+
+The app is configured to use custom launcher icons via `flutter_launcher_icons`:
+
+```bash
+cd mobile
+
+# 1. Create your app icon (1024x1024 PNG)
+# Save as: assets/icon/app_icon.png
+# See: mobile/assets/icon/README.md for design guidelines
+
+# 2. Generate platform-specific icons
+flutter pub run flutter_launcher_icons
+
+# 3. Rebuild your app
+flutter clean
+flutter run
+```
+
+For detailed icon design guidelines, see [mobile/assets/icon/README.md](mobile/assets/icon/README.md).
+
+**Note:** The app currently uses Flutter's default icon. Create a custom icon for production release.
+
 ## 🚀 Production Deployment
 
 ### Quick Start with Docker

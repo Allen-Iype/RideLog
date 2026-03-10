@@ -8,9 +8,11 @@ import '../services/ride_recording_service.dart';
 import '../services/ride_storage_service.dart';
 import '../services/sync_service.dart';
 import '../services/connectivity_service.dart';
+import '../services/auth_service.dart';
 import '../models/ride.dart';
 import '../widgets/gps_data_panel.dart';
 import '../widgets/ride_stats_panel.dart';
+import 'login_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -25,6 +27,7 @@ class _MapScreenState extends State<MapScreen> {
   final RideRecordingService _rideService = RideRecordingService.instance;
   final SyncService _syncService = SyncService();
   final ConnectivityService _connectivityService = ConnectivityService();
+  final AuthService _authService = AuthService();
 
   Position? _currentPosition;
   bool _isLoadingLocation = true;
@@ -118,6 +121,50 @@ class _MapScreenState extends State<MapScreen> {
   /// Manually trigger sync
   Future<void> _triggerSync() async {
     await _syncService.syncUnsyncedRides();
+  }
+
+  /// Handle user logout
+  Future<void> _handleLogout() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      // Stop any ongoing tracking
+      if (_isTracking) {
+        _gpsService.stopTracking();
+      }
+
+      // Stop any ongoing ride recording
+      if (_rideService.isRecording) {
+        await _rideService.discardRide();
+      }
+
+      // Logout
+      await _authService.logout();
+
+      // Navigate to login screen
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+    }
   }
 
   /// Show snackbar helper method
@@ -525,6 +572,26 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                 ),
+            ],
+          ),
+          // Menu button with logout option
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'logout') {
+                _handleLogout();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
             ],
           ),
         ],

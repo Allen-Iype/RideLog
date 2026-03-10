@@ -3,9 +3,13 @@ package main
 import (
 	"log"
 
+	"github.com/allen/ridelog-backend/internal/api/handlers"
+	"github.com/allen/ridelog-backend/internal/api/middleware"
 	"github.com/allen/ridelog-backend/internal/api/routes"
 	"github.com/allen/ridelog-backend/internal/config"
 	"github.com/allen/ridelog-backend/internal/database"
+	"github.com/allen/ridelog-backend/internal/repository"
+	"github.com/allen/ridelog-backend/pkg/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,11 +30,34 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
+	// Initialize JWT manager
+	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Duration)
+	log.Println("JWT manager initialized")
+
+	// Get database connection
+	db := database.GetDB()
+
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+	rideRepo := repository.NewRideRepository(db)
+
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(userRepo, jwtManager)
+	rideHandler := handlers.NewRideHandler(rideRepo)
+
+	// Initialize middleware
+	authMiddleware := middleware.AuthMiddleware(jwtManager)
+
 	// Initialize Gin router
 	router := gin.Default()
 
 	// Setup all routes
-	routes.SetupRoutes(router)
+	routeConfig := &routes.RouteConfig{
+		RideHandler:    rideHandler,
+		AuthHandler:    authHandler,
+		AuthMiddleware: authMiddleware,
+	}
+	routes.SetupRoutes(router, routeConfig)
 
 	// Start server
 	log.Println("╔════════════════════════════════════════╗")
@@ -39,6 +66,8 @@ func main() {
 	log.Printf("Server starting on %s:%s", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("Health check: http://%s:%s/health", cfg.Server.Host, cfg.Server.Port)
 	log.Printf("API v1: http://%s:%s/api/v1", cfg.Server.Host, cfg.Server.Port)
+	log.Printf("Authentication: http://%s:%s/api/v1/auth/register", cfg.Server.Host, cfg.Server.Port)
+	log.Printf("Authentication: http://%s:%s/api/v1/auth/login", cfg.Server.Host, cfg.Server.Port)
 	log.Println("Press Ctrl+C to stop")
 
 	if err := router.Run(":" + cfg.Server.Port); err != nil {

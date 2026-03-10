@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/allen/ridelog-backend/internal/database"
 	"github.com/allen/ridelog-backend/internal/models"
 	"github.com/google/uuid"
 )
@@ -15,9 +14,9 @@ type RideRepository struct {
 }
 
 // NewRideRepository creates a new ride repository
-func NewRideRepository() *RideRepository {
+func NewRideRepository(db *sql.DB) *RideRepository {
 	return &RideRepository{
-		db: database.DB,
+		db: db,
 	}
 }
 

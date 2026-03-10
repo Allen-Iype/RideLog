@@ -64,6 +64,11 @@ func RunMigrations(cfg *config.DatabaseConfig) error {
 	return nil
 }
 
+// GetDB returns the database connection
+func GetDB() *sql.DB {
+	return DB
+}
+
 // Close closes the database connection
 func Close() error {
 	if DB != nil {

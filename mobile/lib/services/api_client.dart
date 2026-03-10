@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/ride.dart';
 import '../models/route_point.dart';
+import 'auth_service.dart';
 
 class ApiClient {
   // Singleton pattern
@@ -18,9 +19,19 @@ class ApiClient {
   // For physical devices, use your computer's IP: http://192.168.x.x:8080/api/v1
 
   final http.Client _client = http.Client();
+  final AuthService _authService = AuthService();
 
   // Timeout duration for requests
   static const Duration timeout = Duration(seconds: 30);
+
+  // Get headers with authentication token
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await _authService.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
 
   /// Create a new ride on the server
   Future<Map<String, dynamic>> createRide(Ride ride, List<RoutePoint> routePoints) async {
@@ -53,12 +64,11 @@ class ApiClient {
       print('API Client: Sending ride to $url');
       print('API Client: Request body has ${apiRoutePoints.length} route points');
 
+      final headers = await _getHeaders();
       final response = await _client
           .post(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: headers,
             body: jsonEncode(body),
           )
           .timeout(timeout);
@@ -93,12 +103,11 @@ class ApiClient {
     try {
       final url = Uri.parse('$baseUrl/rides?page=$page&page_size=$pageSize');
 
+      final headers = await _getHeaders();
       final response = await _client
           .get(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: headers,
           )
           .timeout(timeout);
 
@@ -126,12 +135,11 @@ class ApiClient {
     try {
       final url = Uri.parse('$baseUrl/rides/$rideId');
 
+      final headers = await _getHeaders();
       final response = await _client
           .get(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: headers,
           )
           .timeout(timeout);
 
@@ -159,12 +167,11 @@ class ApiClient {
     try {
       final url = Uri.parse('$baseUrl/rides/$rideId');
 
+      final headers = await _getHeaders();
       final response = await _client
           .delete(
             url,
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: headers,
           )
           .timeout(timeout);
 

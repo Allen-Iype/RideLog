@@ -16,9 +16,9 @@ type RideHandler struct {
 }
 
 // NewRideHandler creates a new ride handler
-func NewRideHandler() *RideHandler {
+func NewRideHandler(rideRepo *repository.RideRepository) *RideHandler {
 	return &RideHandler{
-		rideRepo: repository.NewRideRepository(),
+		rideRepo: rideRepo,
 	}
 }
 
@@ -33,9 +33,18 @@ func (h *RideHandler) CreateRide(c *gin.Context) {
 		return
 	}
 
-	// For now, use a hardcoded user ID (will be replaced with JWT auth in Phase 8)
-	// In a real app, this would come from the authenticated user
-	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	// Get user ID from context (set by auth middleware)
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		return
+	}
 
 	ride, err := h.rideRepo.Create(userID, &req)
 	if err != nil {
@@ -59,8 +68,18 @@ func (h *RideHandler) GetRide(c *gin.Context) {
 		return
 	}
 
-	// For now, use a hardcoded user ID (will be replaced with JWT auth in Phase 8)
-	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	// Get user ID from context (set by auth middleware)
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		return
+	}
 
 	ride, err := h.rideRepo.GetByID(rideID, userID)
 	if err != nil {
@@ -95,8 +114,18 @@ func (h *RideHandler) ListRides(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	// For now, use a hardcoded user ID (will be replaced with JWT auth in Phase 8)
-	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	// Get user ID from context (set by auth middleware)
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		return
+	}
 
 	rides, totalCount, err := h.rideRepo.List(userID, pageSize, offset)
 	if err != nil {
@@ -132,8 +161,18 @@ func (h *RideHandler) DeleteRide(c *gin.Context) {
 		return
 	}
 
-	// For now, use a hardcoded user ID (will be replaced with JWT auth in Phase 8)
-	userID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	// Get user ID from context (set by auth middleware)
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		return
+	}
 
 	err = h.rideRepo.Delete(rideID, userID)
 	if err != nil {

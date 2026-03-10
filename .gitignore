@@ -28,6 +28,8 @@ backend/*.dylib
 backend/*.test
 backend/*.out
 backend/tmp/
+backend/server
+backend/main
 
 # Environment
 .env

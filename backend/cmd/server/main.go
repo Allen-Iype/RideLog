@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/allen/ridelog-backend/internal/api/handlers"
 	"github.com/allen/ridelog-backend/internal/api/middleware"
 	"github.com/allen/ridelog-backend/internal/api/routes"
@@ -10,6 +8,7 @@ import (
 	"github.com/allen/ridelog-backend/internal/database"
 	"github.com/allen/ridelog-backend/internal/repository"
 	"github.com/allen/ridelog-backend/pkg/auth"
+	"github.com/allen/ridelog-backend/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,21 +17,21 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize database
-	log.Println("Initializing database connection...")
+	logger.Info("Initializing database connection...")
 	if err := database.Initialize(&cfg.Database); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		logger.Fatal("Failed to initialize database: %v", err)
 	}
 	defer database.Close()
 
 	// Run migrations
-	log.Println("Running database migrations...")
+	logger.Info("Running database migrations...")
 	if err := database.RunMigrations(&cfg.Database); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		logger.Fatal("Failed to run migrations: %v", err)
 	}
 
 	// Initialize JWT manager
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Duration)
-	log.Println("JWT manager initialized")
+	logger.Info("JWT manager initialized")
 
 	// Get database connection
 	db := database.GetDB()
@@ -49,6 +48,8 @@ func main() {
 	authMiddleware := middleware.AuthMiddleware(jwtManager)
 
 	// Initialize Gin router
+	// Set Gin mode based on environment
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
 	// Setup all routes
@@ -60,17 +61,17 @@ func main() {
 	routes.SetupRoutes(router, routeConfig)
 
 	// Start server
-	log.Println("╔════════════════════════════════════════╗")
-	log.Println("║         RideLog Backend API            ║")
-	log.Println("╚════════════════════════════════════════╝")
-	log.Printf("Server starting on %s:%s", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("Health check: http://%s:%s/health", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("API v1: http://%s:%s/api/v1", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("Authentication: http://%s:%s/api/v1/auth/register", cfg.Server.Host, cfg.Server.Port)
-	log.Printf("Authentication: http://%s:%s/api/v1/auth/login", cfg.Server.Host, cfg.Server.Port)
-	log.Println("Press Ctrl+C to stop")
+	logger.Info("╔════════════════════════════════════════╗")
+	logger.Info("║         RideLog Backend API            ║")
+	logger.Info("╚════════════════════════════════════════╝")
+	logger.Info("Server starting on %s:%s", cfg.Server.Host, cfg.Server.Port)
+	logger.Info("Health check: http://%s:%s/health", cfg.Server.Host, cfg.Server.Port)
+	logger.Info("API v1: http://%s:%s/api/v1", cfg.Server.Host, cfg.Server.Port)
+	logger.Info("Authentication: http://%s:%s/api/v1/auth/register", cfg.Server.Host, cfg.Server.Port)
+	logger.Info("Authentication: http://%s:%s/api/v1/auth/login", cfg.Server.Host, cfg.Server.Port)
+	logger.Info("Press Ctrl+C to stop")
 
 	if err := router.Run(":" + cfg.Server.Port); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		logger.Fatal("Server failed to start: %v", err)
 	}
 }

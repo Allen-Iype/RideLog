@@ -49,6 +49,10 @@ dependencies:
   path: ^1.8.3
   uuid: ^4.3.3
 
+  # Network and sync
+  http: ^1.2.0
+  connectivity_plus: ^5.0.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

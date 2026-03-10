@@ -176,6 +176,25 @@ class RideStorageService {
     }
   }
 
+  /// Get route points for a specific ride
+  Future<List<RoutePoint>> getRoutePointsForRide(String rideId) async {
+    final db = await _dbHelper.database;
+
+    try {
+      final List<Map<String, dynamic>> pointMaps = await db.query(
+        DatabaseHelper.tableRoutePoints,
+        where: 'ride_id = ?',
+        whereArgs: [rideId],
+        orderBy: 'sequence_number ASC',
+      );
+
+      return pointMaps.map((map) => RoutePoint.fromMap(map)).toList();
+    } catch (e) {
+      print('Error getting route points for ride: $e');
+      return [];
+    }
+  }
+
   /// Mark a ride as synced
   Future<bool> markAsSynced(String id) async {
     final db = await _dbHelper.database;
@@ -194,6 +213,11 @@ class RideStorageService {
       print('Error marking ride as synced: $e');
       return false;
     }
+  }
+
+  /// Mark a ride as synced (alias for consistency with sync service)
+  Future<bool> markRideAsSynced(String id) async {
+    return markAsSynced(id);
   }
 
   /// Get total number of rides

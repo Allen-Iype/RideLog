@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart';
 import '../services/gps_service.dart';
 import '../services/ride_recording_service.dart';
 import '../services/ride_storage_service.dart';
+import '../services/sync_service.dart';
+import '../services/connectivity_service.dart';
 import '../models/ride.dart';
 import '../widgets/gps_data_panel.dart';
 import '../widgets/ride_stats_panel.dart';
@@ -21,6 +23,8 @@ class _MapScreenState extends State<MapScreen> {
   final MapController _mapController = MapController();
   final GpsService _gpsService = GpsService.instance;
   final RideRecordingService _rideService = RideRecordingService.instance;
+  final SyncService _syncService = SyncService();
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   Position? _currentPosition;
   bool _isLoadingLocation = true;
@@ -29,19 +33,104 @@ class _MapScreenState extends State<MapScreen> {
 
   StreamSubscription<Position>? _locationSubscription;
   Timer? _routeUpdateTimer;
+  StreamSubscription<SyncResult>? _syncStatusSubscription;
+  StreamSubscription<bool>? _connectivitySubscription;
+
+  bool _isOnline = false;
+  int _unsyncedRideCount = 0;
+  SyncStatus _syncStatus = SyncStatus.idle;
 
   @override
   void initState() {
     super.initState();
     _initializeLocation();
+    _initializeSync();
   }
 
   @override
   void dispose() {
     _locationSubscription?.cancel();
     _routeUpdateTimer?.cancel();
+    _syncStatusSubscription?.cancel();
+    _connectivitySubscription?.cancel();
     // Don't dispose the GPS service singleton here
     super.dispose();
+  }
+
+  /// Initialize sync service and connectivity monitoring
+  Future<void> _initializeSync() async {
+    // Initialize sync service
+    await _syncService.initialize();
+
+    // Listen to sync status changes
+    _syncStatusSubscription = _syncService.syncStatusStream.listen((result) {
+      setState(() {
+        _syncStatus = result.status;
+      });
+
+      // Show snackbar for sync results
+      if (result.status == SyncStatus.success) {
+        if (result.syncedCount > 0) {
+          _showSnackBar(
+            'Successfully synced ${result.syncedCount} ride(s)',
+            Colors.green,
+          );
+        }
+      } else if (result.status == SyncStatus.error) {
+        _showSnackBar(
+          result.errorMessage ?? 'Sync failed',
+          Colors.red,
+        );
+      }
+
+      // Update unsynced ride count
+      _updateUnsyncedCount();
+    });
+
+    // Listen to connectivity changes
+    _connectivitySubscription =
+        _connectivityService.connectivityStream.listen((isOnline) {
+      setState(() {
+        _isOnline = isOnline;
+      });
+
+      if (isOnline) {
+        _showSnackBar('Connected to internet', Colors.green);
+      } else {
+        _showSnackBar('No internet connection', Colors.orange);
+      }
+    });
+
+    // Get initial state
+    _isOnline = await _connectivityService.checkConnectivity();
+    _updateUnsyncedCount();
+    setState(() {});
+  }
+
+  /// Update unsynced ride count
+  Future<void> _updateUnsyncedCount() async {
+    final count = await _syncService.getUnsyncedRideCount();
+    setState(() {
+      _unsyncedRideCount = count;
+    });
+  }
+
+  /// Manually trigger sync
+  Future<void> _triggerSync() async {
+    await _syncService.syncUnsyncedRides();
+  }
+
+  /// Show snackbar helper method
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: backgroundColor,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// Initialize location - get current position once
@@ -295,17 +384,20 @@ class _MapScreenState extends State<MapScreen> {
                 // Save to local database
                 final rideId = await RideStorageService.instance.saveRide(ride);
 
+                // Update unsynced ride count
+                await _updateUnsyncedCount();
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Ride saved successfully!'),
+                      content: Text('Ride saved! Will sync when online.'),
                       backgroundColor: Colors.green,
                       duration: const Duration(seconds: 3),
                       action: SnackBarAction(
-                        label: 'View',
+                        label: 'Sync Now',
                         textColor: Colors.white,
                         onPressed: () {
-                          // TODO: Navigate to ride detail screen
+                          _triggerSync();
                         },
                       ),
                     ),
@@ -391,6 +483,50 @@ class _MapScreenState extends State<MapScreen> {
               onPressed: _centerOnLocation,
               tooltip: 'Center on my location',
             ),
+          // Sync button with badge showing unsynced ride count
+          Stack(
+            children: [
+              IconButton(
+                icon: Icon(
+                  _syncStatus == SyncStatus.syncing
+                      ? Icons.sync
+                      : Icons.cloud_upload,
+                  color: _isOnline ? Colors.blue : Colors.grey,
+                ),
+                onPressed: _syncStatus == SyncStatus.syncing
+                    ? null
+                    : _triggerSync,
+                tooltip: _unsyncedRideCount > 0
+                    ? 'Sync $_unsyncedRideCount unsynced ride(s)'
+                    : 'All rides synced',
+              ),
+              if (_unsyncedRideCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_unsyncedRideCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       body: Stack(

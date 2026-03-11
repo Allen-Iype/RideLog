@@ -18,6 +18,8 @@ RideLog is designed specifically for motorcycle enthusiasts who want to:
 - Analyze ride statistics (distance, duration, speed)
 - Record rides offline and sync when connected
 
+**🚀 New to RideLog?** Start with the **[Complete Setup and Testing Guide](docs/SETUP_AND_TEST.md)** for step-by-step instructions!
+
 ## 🛠️ Tech Stack
 
 | Component | Technology |
@@ -108,11 +110,13 @@ RideLog/
 
 Comprehensive documentation is available in the `docs/` directory:
 
+- **[Setup and Testing Guide](docs/SETUP_AND_TEST.md)** - ⭐ Start here! Complete setup and end-to-end testing
 - **[Project Plan](docs/PROJECT_PLAN.md)** - Development phases, tasks, and milestones
 - **[Architecture](docs/ARCHITECTURE.md)** - System design and technical decisions
 - **[API Specification](docs/API_SPEC.md)** - Complete API documentation
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[Progress](docs/PROGRESS.md)** - Detailed implementation progress
+- **[Testing Guide](docs/TESTING_GUIDE.md)** - Phase-specific testing procedures
 
 ## 🏗️ Development Status
 
